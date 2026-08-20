@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pocket Ledger — Track Every Rupee</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="jar-bg" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">◐</span>
+    <span class="brand-text">Pocket Ledger</span>
+  </div>
+  <div class="today-pill" id="todayPill"></div>
+</header>
+
+<main class="wrap">
+
+  <!-- Summary Cards -->
+  <section class="summary-grid" aria-label="Spending summary">
+    <div class="sum-card sum-today">
+      <span class="sum-label">Today</span>
+      <span class="sum-value"><span class="cur">₹</span><span id="sumToday">0</span></span>
+      <span class="sum-sub" id="todayCount">0 entries</span>
+    </div>
+    <div class="sum-card sum-month">
+      <span class="sum-label">This Month</span>
+      <span class="sum-value"><span class="cur">₹</span><span id="sumMonth">0</span></span>
+      <span class="sum-sub" id="monthCount">0 entries</span>
+    </div>
+    <div class="sum-card sum-year">
+      <span class="sum-label">This Year</span>
+      <span class="sum-value"><span class="cur">₹</span><span id="sumYear">0</span></span>
+      <span class="sum-sub" id="yearCount">0 entries</span>
+    </div>
+    <div class="sum-card sum-avg">
+      <span class="sum-label">Daily Average</span>
+      <span class="sum-value"><span class="cur">₹</span><span id="sumAvg">0</span></span>
+      <span class="sum-sub">this month</span>
+    </div>
+  </section>
+
+  <div class="main-grid">
+
+    <!-- Add Expense -->
+    <section class="card add-card" aria-label="Add a new expense">
+      <h2 class="card-title">Add an expense</h2>
+      <form id="expenseForm" autocomplete="off">
+        <div class="field-row">
+          <div class="field">
+            <label for="amount">Amount</label>
+            <div class="amount-wrap">
+              <span>₹</span>
+              <input type="number" id="amount" name="amount" placeholder="0" min="0" step="0.01" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="date">Date</label>
+            <input type="date" id="date" name="date" required>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Category</label>
+          <div class="category-picker" id="categoryPicker"></div>
+        </div>
+
+        <div class="field">
+          <label for="note">Note <span class="optional">(optional)</span></label>
+          <input type="text" id="note" name="note" placeholder="e.g. Coffee with Ravi, auto fare...">
+        </div>
+
+        <button type="submit" class="btn-add">
+          <span class="btn-add-icon">+</span> Add Expense
+        </button>
+      </form>
+    </section>
+
+    <!-- Category Breakdown -->
+    <section class="card chart-card" aria-label="Category breakdown">
+      <div class="card-title-row">
+        <h2 class="card-title">Where it's going</h2>
+        <div class="range-toggle" id="donutRangeToggle">
+          <button class="range-btn active" data-range="month">Month</button>
+          <button class="range-btn" data-range="year">Year</button>
+          <button class="range-btn" data-range="all">All</button>
+        </div>
+      </div>
+      <div class="donut-wrap">
+        <canvas id="categoryChart" aria-label="Spending by category" role="img"></canvas>
+        <div class="donut-center" id="donutCenter">
+          <span class="donut-total">₹0</span>
+          <span class="donut-total-label">total</span>
+        </div>
+      </div>
+      <div class="legend" id="categoryLegend"></div>
+    </section>
+
+    <!-- Trend Chart -->
+    <section class="card trend-card" aria-label="Spending trend">
+      <div class="card-title-row">
+        <h2 class="card-title">Spending trend</h2>
+        <div class="range-toggle" id="trendRangeToggle">
+          <button class="range-btn active" data-range="week">7 Days</button>
+          <button class="range-btn" data-range="month">30 Days</button>
+          <button class="range-btn" data-range="year">12 Months</button>
+        </div>
+      </div>
+      <canvas id="trendChart" height="90" aria-label="Spending over time" role="img"></canvas>
+    </section>
+
+    <!-- Transactions -->
+    <section class="card list-card" aria-label="Recent transactions">
+      <div class="card-title-row">
+        <h2 class="card-title">Recent entries</h2>
+        <input type="text" id="searchBox" placeholder="Search notes or category…" class="search-box">
+      </div>
+      <div id="txList" class="tx-list"></div>
+      <p id="emptyState" class="empty-state" hidden>
+        No expenses yet — the ledger is empty. Add your first one above ↑
+      </p>
+    </section>
+
+  </div>
+</main>
+
+<footer class="footer">
+  Pocket Ledger · stored privately in this browser · <button id="exportBtn" class="link-btn">export CSV</button> · <button id="resetBtn" class="link-btn danger">clear all data</button>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
