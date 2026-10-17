@@ -2,12 +2,29 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Pocket Ledger — Track Every Rupee</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💰</text></svg>">
+<meta name="description" content="Track expenses, income, budgets and savings.">
+<meta name="theme-color" content="#7048E8" id="metaTheme">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KnowUrExpense">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<script>
+  /* Apply saved theme before first paint so there is no flash */
+  (function () {
+    try {
+      var pref = localStorage.getItem("knowurexpense.theme") || "auto";
+      var dark = pref === "dark" || (pref === "auto" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+      document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    } catch (e) {}
+  })();
+</script>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -19,124 +36,346 @@
     <span class="brand-mark">◐</span>
     <span class="brand-text">Pocket Ledger</span>
   </div>
-  <div class="today-pill" id="todayPill"></div>
+  <div class="top-right">
+    <button class="sync-badge" id="syncBadge" type="button" title="Sync status">Local only</button>
+    <div class="today-pill" id="todayPill"></div>
+    <button class="icon-btn" id="themeBtn" type="button" aria-label="Switch light or dark mode" title="Light / dark">☾</button>
+  </div>
 </header>
+
+<nav class="nav" id="nav" aria-label="Main">
+  <button type="button" class="nav-btn active" data-tab="home"><span class="nav-ic">🏠</span><span>Home</span></button>
+  <button type="button" class="nav-btn" data-tab="budgets"><span class="nav-ic">🎯</span><span>Budgets</span></button>
+  <button type="button" class="nav-btn" data-tab="recurring"><span class="nav-ic">🔁</span><span>Recurring</span></button>
+  <button type="button" class="nav-btn" data-tab="insights"><span class="nav-ic">📊</span><span>Insights</span></button>
+  <button type="button" class="nav-btn" data-tab="history"><span class="nav-ic">🧾</span><span>History</span></button>
+  <button type="button" class="nav-btn" data-tab="settings"><span class="nav-ic">⚙️</span><span>Settings</span></button>
+</nav>
 
 <main class="wrap">
 
-  <!-- Summary Cards -->
-  <section class="summary-grid" aria-label="Spending summary">
-    <div class="sum-card sum-today">
-      <span class="sum-label">Today</span>
-      <span class="sum-value"><span class="cur">₹</span><span id="sumToday">0</span></span>
-      <span class="sum-sub" id="todayCount">0 entries</span>
-    </div>
-    <div class="sum-card sum-month">
-      <span class="sum-label">This Month</span>
-      <span class="sum-value"><span class="cur">₹</span><span id="sumMonth">0</span></span>
-      <span class="sum-sub" id="monthCount">0 entries</span>
-    </div>
-    <div class="sum-card sum-year">
-      <span class="sum-label">This Year</span>
-      <span class="sum-value"><span class="cur">₹</span><span id="sumYear">0</span></span>
-      <span class="sum-sub" id="yearCount">0 entries</span>
-    </div>
-    <div class="sum-card sum-avg">
-      <span class="sum-label">Daily Average</span>
-      <span class="sum-value"><span class="cur">₹</span><span id="sumAvg">0</span></span>
-      <span class="sum-sub">this month</span>
+  <div id="alerts" class="alerts" aria-live="polite"></div>
+
+  <!-- ================= HOME ================= -->
+  <section id="tab-home" class="tab-panel active">
+
+    <section class="summary-grid" aria-label="This month">
+      <div class="sum-card sum-income">
+        <span class="sum-label">Income this month</span>
+        <span class="sum-value" id="sumIncome">₹0</span>
+        <span class="sum-sub" id="incomeSub">0 entries</span>
+      </div>
+      <div class="sum-card sum-spent">
+        <span class="sum-label">Spent this month</span>
+        <span class="sum-value" id="sumSpent">₹0</span>
+        <span class="sum-sub" id="spentSub">Today ₹0</span>
+      </div>
+      <div class="sum-card sum-saved">
+        <span class="sum-label">Savings</span>
+        <span class="sum-value" id="sumSaved">₹0</span>
+        <span class="sum-sub" id="savedSub">Add income to track</span>
+      </div>
+      <div class="sum-card sum-left">
+        <span class="sum-label">Budget left</span>
+        <span class="sum-value" id="sumLeft">—</span>
+        <span class="sum-sub" id="leftSub">Set a budget</span>
+      </div>
+    </section>
+
+    <div class="main-grid">
+
+      <section class="card add-card" aria-label="Add an entry">
+        <h2 class="card-title" id="formTitle">Add an entry</h2>
+        <form id="expenseForm" autocomplete="off">
+          <div class="range-toggle big" id="typeToggle">
+            <button type="button" class="range-btn active" data-type="expense">Expense</button>
+            <button type="button" class="range-btn" data-type="income">Income</button>
+          </div>
+
+          <div class="field-row">
+            <div class="field">
+              <label for="amount">Amount</label>
+              <div class="amount-wrap">
+                <span>₹</span>
+                <input type="number" id="amount" name="amount" placeholder="0" min="0" step="0.01" inputmode="decimal" required>
+              </div>
+            </div>
+            <div class="field">
+              <label for="date">Date</label>
+              <input class="in" type="date" id="date" name="date" required>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Category</label>
+            <div class="category-picker" id="categoryPicker"></div>
+          </div>
+
+          <div class="field" id="methodField">
+            <label>Paid with</label>
+            <div class="category-picker" id="methodPicker"></div>
+          </div>
+
+          <div class="field">
+            <label for="note">Note <span class="optional">(optional)</span></label>
+            <input class="in" type="text" id="note" name="note" placeholder="e.g. Coffee with Ravi, auto fare...">
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-add" id="submitBtn"><span class="btn-add-icon">+</span> Add expense</button>
+            <button type="button" class="btn-ghost" id="cancelEdit" hidden>Cancel</button>
+          </div>
+        </form>
+      </section>
+
+      <div class="stack">
+        <section class="card" id="reminderCard" hidden aria-label="Reminders"></section>
+
+        <section class="card" aria-label="Budgets at a glance">
+          <div class="card-title-row">
+            <h2 class="card-title">Budgets</h2>
+            <button type="button" class="link-btn" data-goto="budgets">Edit</button>
+          </div>
+          <div id="homeBudgets"></div>
+        </section>
+      </div>
+
+      <section class="card list-card" aria-label="Recent entries">
+        <div class="card-title-row">
+          <h2 class="card-title">Recent entries</h2>
+          <button type="button" class="link-btn" data-goto="history">See all</button>
+        </div>
+        <div id="recentList" class="tx-list short"></div>
+        <p id="recentEmpty" class="empty-state" hidden>Nothing here yet. Add your first expense or income above.</p>
+      </section>
+
     </div>
   </section>
 
-  <div class="main-grid">
+  <!-- ================= BUDGETS ================= -->
+  <section id="tab-budgets" class="tab-panel">
+    <div class="main-grid">
+      <section class="card">
+        <h2 class="card-title">Monthly budget</h2>
+        <p class="muted">You get an alert when a budget reaches 80% and again when it is crossed. Leave a box empty for no limit.</p>
+        <div class="field">
+          <label for="bOverall">Overall monthly budget (₹)</label>
+          <input class="in" type="number" id="bOverall" min="0" step="1" inputmode="decimal" placeholder="e.g. 15000">
+        </div>
+        <div class="field">
+          <label for="bSavings">Monthly savings goal (₹)</label>
+          <input class="in" type="number" id="bSavings" min="0" step="1" inputmode="decimal" placeholder="e.g. 3000">
+        </div>
+        <h3 class="sub-title">Category budgets</h3>
+        <div id="catBudgetInputs" class="cat-budget-grid"></div>
+        <button type="button" class="btn-add" id="saveBudgets">Save budgets</button>
+      </section>
 
-    <!-- Add Expense -->
-    <section class="card add-card" aria-label="Add a new expense">
-      <h2 class="card-title">Add an expense</h2>
-      <form id="expenseForm" autocomplete="off">
-        <div class="field-row">
-          <div class="field">
-            <label for="amount">Amount</label>
-            <div class="amount-wrap">
-              <span>₹</span>
-              <input type="number" id="amount" name="amount" placeholder="0" min="0" step="0.01" required>
+      <section class="card">
+        <h2 class="card-title">This month so far</h2>
+        <div id="budgetBars"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================= RECURRING ================= -->
+  <section id="tab-recurring" class="tab-panel">
+    <div class="main-grid">
+      <section class="card" id="reminderCard2" hidden aria-label="Reminders"></section>
+
+      <section class="card">
+        <h2 class="card-title">Add a recurring item</h2>
+        <p class="muted">Rent, subscriptions, EMIs, salary. When one is due it shows up as a reminder, and you add it with one tap.</p>
+        <form id="recurringForm" autocomplete="off">
+          <div class="field-row">
+            <div class="field">
+              <label for="rType">Type</label>
+              <select class="in" id="rType"><option value="expense">Expense</option><option value="income">Income</option></select>
+            </div>
+            <div class="field">
+              <label for="rAmount">Amount (₹)</label>
+              <input class="in" type="number" id="rAmount" min="0" step="0.01" inputmode="decimal" placeholder="0" required>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="rCat">Category</label>
+              <select class="in" id="rCat"></select>
+            </div>
+            <div class="field" id="rMethodField">
+              <label for="rMethod">Paid with</label>
+              <select class="in" id="rMethod"></select>
             </div>
           </div>
           <div class="field">
-            <label for="date">Date</label>
-            <input type="date" id="date" name="date" required>
+            <label for="rNote">Name <span class="optional">(optional)</span></label>
+            <input class="in" type="text" id="rNote" placeholder="e.g. Netflix, Room rent">
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="rFreq">Repeats</label>
+              <select class="in" id="rFreq"><option value="monthly">Every month</option><option value="weekly">Every week</option><option value="yearly">Every year</option></select>
+            </div>
+            <div class="field">
+              <label for="rStart">First due date</label>
+              <input class="in" type="date" id="rStart" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-add"><span class="btn-add-icon">+</span> Add recurring item</button>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Your recurring items</h2>
+        <div id="ruleList"></div>
+      </section>
+    </div>
+  </section>
+
+  <!-- ================= INSIGHTS ================= -->
+  <section id="tab-insights" class="tab-panel">
+    <div class="main-grid">
+
+      <section class="card trend-card">
+        <h2 class="card-title">Income and spending, last 6 months</h2>
+        <canvas id="monthlyChart" aria-label="Income and spending by month" role="img"></canvas>
+      </section>
+
+      <section class="card chart-card">
+        <div class="card-title-row">
+          <h2 class="card-title">Where it's going</h2>
+          <div class="range-toggle" id="rangeToggle">
+            <button class="range-btn active" data-range="month">Month</button>
+            <button class="range-btn" data-range="year">Year</button>
+            <button class="range-btn" data-range="all">All</button>
           </div>
         </div>
-
-        <div class="field">
-          <label>Category</label>
-          <div class="category-picker" id="categoryPicker"></div>
+        <div class="donut-wrap">
+          <canvas id="categoryChart" aria-label="Spending by category" role="img"></canvas>
+          <div class="donut-center" id="catCenter"><span class="donut-total">₹0</span><span class="donut-total-label">total</span></div>
         </div>
+        <div class="legend" id="catLegend"></div>
+      </section>
 
-        <div class="field">
-          <label for="note">Note <span class="optional">(optional)</span></label>
-          <input type="text" id="note" name="note" placeholder="e.g. Coffee with Ravi, auto fare...">
+      <section class="card chart-card">
+        <h2 class="card-title">How you pay</h2>
+        <p class="muted small">Uses the same Month / Year / All choice.</p>
+        <div class="donut-wrap">
+          <canvas id="payChart" aria-label="Spending by payment method" role="img"></canvas>
+          <div class="donut-center" id="payCenter"><span class="donut-total">₹0</span><span class="donut-total-label">total</span></div>
         </div>
+        <div class="legend" id="payLegend"></div>
+      </section>
 
-        <button type="submit" class="btn-add">
-          <span class="btn-add-icon">+</span> Add Expense
-        </button>
-      </form>
-    </section>
-
-    <!-- Category Breakdown -->
-    <section class="card chart-card" aria-label="Category breakdown">
-      <div class="card-title-row">
-        <h2 class="card-title">Where it's going</h2>
-        <div class="range-toggle" id="donutRangeToggle">
-          <button class="range-btn active" data-range="month">Month</button>
-          <button class="range-btn" data-range="year">Year</button>
-          <button class="range-btn" data-range="all">All</button>
+      <section class="card trend-card">
+        <div class="card-title-row">
+          <h2 class="card-title">Spending trend</h2>
+          <div class="range-toggle" id="trendToggle">
+            <button class="range-btn active" data-range="week">7 days</button>
+            <button class="range-btn" data-range="month">30 days</button>
+            <button class="range-btn" data-range="year">12 months</button>
+          </div>
         </div>
+        <canvas id="trendChart" aria-label="Spending over time" role="img"></canvas>
+      </section>
+
+      <section class="card trend-card">
+        <h2 class="card-title">What stands out this month</h2>
+        <ul id="insightList" class="insight-list"></ul>
+      </section>
+
+    </div>
+  </section>
+
+  <!-- ================= HISTORY ================= -->
+  <section id="tab-history" class="tab-panel">
+    <section class="card list-card">
+      <div class="filters">
+        <input class="in" type="text" id="searchBox" placeholder="Search notes or category…" aria-label="Search entries">
+        <select class="in" id="fType" aria-label="Filter by type"><option value="all">All types</option><option value="expense">Expenses</option><option value="income">Income</option></select>
+        <select class="in" id="fMethod" aria-label="Filter by payment method"><option value="all">All payment methods</option></select>
+        <select class="in" id="fMonth" aria-label="Filter by month"><option value="all">All months</option></select>
       </div>
-      <div class="donut-wrap">
-        <canvas id="categoryChart" aria-label="Spending by category" role="img"></canvas>
-        <div class="donut-center" id="donutCenter">
-          <span class="donut-total">₹0</span>
-          <span class="donut-total-label">total</span>
-        </div>
-      </div>
-      <div class="legend" id="categoryLegend"></div>
-    </section>
-
-    <!-- Trend Chart -->
-    <section class="card trend-card" aria-label="Spending trend">
-      <div class="card-title-row">
-        <h2 class="card-title">Spending trend</h2>
-        <div class="range-toggle" id="trendRangeToggle">
-          <button class="range-btn active" data-range="week">7 Days</button>
-          <button class="range-btn" data-range="month">30 Days</button>
-          <button class="range-btn" data-range="year">12 Months</button>
-        </div>
-      </div>
-      <canvas id="trendChart" height="90" aria-label="Spending over time" role="img"></canvas>
-    </section>
-
-    <!-- Transactions -->
-    <section class="card list-card" aria-label="Recent transactions">
-      <div class="card-title-row">
-        <h2 class="card-title">Recent entries</h2>
-        <input type="text" id="searchBox" placeholder="Search notes or category…" class="search-box">
-      </div>
+      <p class="muted small" id="histSummary"></p>
       <div id="txList" class="tx-list"></div>
-      <p id="emptyState" class="empty-state" hidden>
-        No expenses yet — the ledger is empty. Add your first one above ↑
-      </p>
+      <p id="emptyState" class="empty-state" hidden></p>
     </section>
+  </section>
 
-  </div>
+  <!-- ================= SETTINGS ================= -->
+  <section id="tab-settings" class="tab-panel">
+    <div class="main-grid">
+
+      <section class="card" id="accountCard">
+        <h2 class="card-title">Account and sync</h2>
+        <p class="muted" id="syncMsg">Checking sync…</p>
+        <div id="authForm" hidden>
+          <div class="field">
+            <label for="authEmail">Email</label>
+            <input class="in" type="email" id="authEmail" autocomplete="email" inputmode="email" placeholder="you@example.com">
+          </div>
+          <div class="field">
+            <label for="authPass">Password (6+ characters)</label>
+            <input class="in" type="password" id="authPass" autocomplete="current-password">
+          </div>
+          <div class="form-actions wrap-actions">
+            <button type="button" class="btn-add" id="signInBtn">Sign in</button>
+            <button type="button" class="btn-ghost" id="signUpBtn">Create account</button>
+            <button type="button" class="link-btn" id="forgotBtn">Forgot password?</button>
+          </div>
+        </div>
+        <div id="authedBox" hidden>
+          <p><strong id="authedEmail"></strong></p>
+          <p class="muted" id="authedStatus"></p>
+          <div class="form-actions wrap-actions">
+            <button type="button" class="btn-ghost" id="syncNowBtn">Sync now</button>
+            <button type="button" class="btn-ghost" id="signOutBtn">Sign out</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Appearance and reminders</h2>
+        <div class="field">
+          <label>Theme</label>
+          <div class="range-toggle big" id="themeToggle">
+            <button type="button" class="range-btn" data-theme-pref="auto">Auto</button>
+            <button type="button" class="range-btn" data-theme-pref="light">Light</button>
+            <button type="button" class="range-btn" data-theme-pref="dark">Dark</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Notifications</label>
+          <button type="button" class="btn-ghost" id="notifyBtn">Turn on reminder notifications</button>
+          <p class="muted small">Notifications appear when you open the app and something is due or coming up in 3 days.</p>
+        </div>
+        <div class="field">
+          <button type="button" class="btn-ghost" id="installBtn" hidden>Install app on this device</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title">Your data</h2>
+        <p class="muted">Keep a backup file now and then. Restore adds entries from a backup without creating duplicates.</p>
+        <div class="form-actions wrap-actions">
+          <button type="button" class="btn-ghost" id="backupBtn">Download backup (JSON)</button>
+          <button type="button" class="btn-ghost" id="restoreBtn">Restore from backup</button>
+          <button type="button" class="btn-ghost" id="exportBtn">Export CSV</button>
+        </div>
+        <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+        <hr class="rule">
+        <button type="button" class="link-btn danger" id="resetBtn">Delete all data</button>
+        <p class="muted small">If you are signed in, this removes the data from your other devices too.</p>
+      </section>
+
+    </div>
+  </section>
+
 </main>
 
-<footer class="footer">
-  Pocket Ledger · stored privately in this browser · <button id="exportBtn" class="link-btn">export CSV</button> · <button id="resetBtn" class="link-btn danger">clear all data</button>
-</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="vendor/chart.umd.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
